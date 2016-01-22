@@ -71,7 +71,7 @@ def printOutConf(fname,positions, radii, params):
             outf.write(str(positions[i].x)+" "+str(positions[i].y)+" "+str(positions[i].z)+" "+str(radii[i])+"\n")
 
 
-if len(sys.argv) < 2:
+if len(sys.argv) != 3 or len(sys.argv) != 5:
     print(sys.argv[0]+" N vf\n")
     exit(1)
 
@@ -88,6 +88,13 @@ conf_params = {}
 conf_params['d']=3
 conf_params['N']= int(sys.argv[1])
 conf_params['vf'] = float(sys.argv[2])
+if len(sys.argv) == 5:
+    ly_over_lx = float(sys.argv[3])
+    lz_over_lx = float(sys.argv[4])
+else:
+    ly_over_lx = 1
+    lz_over_lx = 1
+
 conf_params['vf1'] = conf_params['vf']*vf_ratio
 conf_params['vf2'] = conf_params['vf'] - conf_params['vf1']
 
