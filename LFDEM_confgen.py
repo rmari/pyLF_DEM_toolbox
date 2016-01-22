@@ -109,7 +109,9 @@ sys.zero_shear = True
 simu.p.kn = 1
 simu.p.friction_model = 0
 simu.p.integration_method = 0
-simu.p.disp_max = 1e-1
+simu.p.disp_max = 5e-3
+simu.p.lubrication_model = 0
+# simu.p.contact_relaxation_time = 1e-4
 
 sys.setConfiguration(positions, radii,conf_params['lx'], conf_params['ly'], conf_params['lz'])
 sys.setupSystem("rate")
@@ -122,7 +124,7 @@ sys.analyzeState()
 print(sys.contact_nb,sys.min_reduced_gap,flush=True)
 
 while sys.contact_nb/conf_params['N']>0.05 and sys.min_reduced_gap<-0.01:
-    sys.timeEvolution("time", sys.get_time()+1)
+    sys.timeEvolution("time", sys.get_time()+2)
     sys.analyzeState()
     print(sys.contact_nb,sys.min_reduced_gap,flush=True)
 
