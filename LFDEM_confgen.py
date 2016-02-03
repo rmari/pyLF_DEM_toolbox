@@ -72,7 +72,7 @@ def printOutConf(fname,positions, radii, params):
 
 
 if len(sys.argv) != 3 or len(sys.argv) != 5:
-    print(sys.argv[0]+" N vf\n")
+    print(sys.argv[0]+" N vf [ly/lx lz/lx]\n")
     exit(1)
 
 radius1 = 1
