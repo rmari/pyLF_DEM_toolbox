@@ -71,7 +71,7 @@ def printOutConf(fname,positions, radii, params):
             outf.write(str(positions[i].x)+" "+str(positions[i].y)+" "+str(positions[i].z)+" "+str(radii[i])+"\n")
 
 
-if len(sys.argv) != 3 or len(sys.argv) != 5:
+if len(sys.argv) != 3 and len(sys.argv) != 5:
     print(sys.argv[0]+" N vf [ly/lx lz/lx]\n")
     exit(1)
 
