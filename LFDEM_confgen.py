@@ -102,6 +102,7 @@ conf_params['vf1'] = conf_params['vf']*vf_ratio
 conf_params['vf2'] = conf_params['vf'] - conf_params['vf1']
 
 simu = lfdem.Simulation()
+print(" LF_DEM version : ", simu.gitVersion())
 sys = simu.getSys()
 
 pvol1, pvol2 = get_pvols(conf_params['d'], radius1, radius2)
@@ -116,7 +117,7 @@ positions, radii = \
     initialRandom(conf_params['N'], conf_params['N1'], radius1, radius2,
                   conf_params['lx'], conf_params['ly'], conf_params['lz'])
 
-simu.setDefaultParameters()
+simu.setDefaultParameters("h")
 simu.p.np_fixed = 0
 sys.zero_shear = True
 simu.p.kn = 1
@@ -125,10 +126,13 @@ simu.p.integration_method = 0
 simu.p.disp_max = 5e-3
 simu.p.lubrication_model = 0
 # simu.p.contact_relaxation_time = 1e-4
+sys.set_np(conf_params['N'])
 
-sys.setConfiguration(positions, radii,
-                     conf_params['lx'], conf_params['ly'], conf_params['lz'])
-sys.setupSystem("rate")
+is2d = False
+sys.setupSystemPreConfiguration("rate", is2d)
+sys.setBoxSize(conf_params['lx'], conf_params['ly'], conf_params['lz'])
+sys.setConfiguration(positions, radii)
+sys.setupSystemPostConfiguration()
 
 sys.checkNewInteraction()
 sys.updateInteractions()
@@ -138,7 +142,7 @@ sys.analyzeState()
 print(sys.contact_nb, sys.min_reduced_gap, flush=True)
 
 while sys.contact_nb/conf_params['N'] > 0.05 and sys.min_reduced_gap < -0.01:
-    sys.timeEvolution("time", sys.get_time()+2)
+    sys.timeEvolution(sys.get_time()+2, -1)
     sys.analyzeState()
     print(sys.contact_nb, sys.min_reduced_gap, flush=True)
 
