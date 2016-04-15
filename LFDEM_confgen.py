@@ -139,12 +139,11 @@ sys.updateInteractions()
 
 # print(conf_params, volume, pvol1, pvol2)
 sys.analyzeState()
-print(sys.contact_nb, sys.min_reduced_gap, flush=True)
-
+print("Generating", flush=True, end='')
 while sys.contact_nb/conf_params['N'] > 0.05 and sys.min_reduced_gap < -0.01:
     sys.timeEvolution(sys.get_time()+2, -1)
     sys.analyzeState()
-    print(sys.contact_nb, sys.min_reduced_gap, flush=True)
+    print(".", flush=True, end='')
 
 fname = "D"+str(conf_params['d'])+"N"+str(conf_params['N'])+"VF"+str(conf_params['vf'])
 fname += "Bidi"+str(radius2/radius1)
@@ -153,5 +152,6 @@ if conf_params['d'] == 3:
     fname += "LyLx"+str(ly_over_lx)
 fname += "LzLx"+str(lz_over_lx)
 fname += ".dat"
-
+print("\n==========")
+print("Conf : ", fname)
 printOutConf(fname, sys.position, radii, conf_params)
