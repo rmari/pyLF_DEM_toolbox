@@ -70,8 +70,8 @@ def printOutConf(fname, positions, radii, params):
 
         outf.write(header)
         for i in range(len(positions)):
-            outf.write(str(positions[i].x) + " " + str(positions[i].y) + " "
-                       + str(positions[i].z) + " " + str(radii[i]) + "\n")
+            outf.write(str(positions[i].x) + " " + str(positions[i].y) + " " +
+                       str(positions[i].z) + " " + str(radii[i]) + "\n")
 
 
 if len(sys.argv) != 3 and len(sys.argv) != 5:
@@ -145,9 +145,12 @@ while sys.contact_nb/conf_params['N'] > 0.05 and sys.min_reduced_gap < -0.01:
     sys.analyzeState()
     print(".", flush=True, end='')
 
-fname = "D"+str(conf_params['d'])+"N"+str(conf_params['N'])+"VF"+str(conf_params['vf'])
-fname += "Bidi"+str(radius2/radius1)
-fname += str(vf_ratio)
+fname = "D"+str(conf_params['d']) +\
+        "N"+str(conf_params['N']) +\
+        "VF"+str(conf_params['vf']) +\
+        "Bidi"+str(radius2/radius1) +\
+        str(vf_ratio)
+
 if conf_params['d'] == 3:
     fname += "LyLx"+str(ly_over_lx)
 fname += "LzLx"+str(lz_over_lx)
