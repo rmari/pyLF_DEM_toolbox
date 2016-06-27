@@ -2,21 +2,17 @@
 
 import sys
 import numpy as np
+import argparse
 import Simulation_LFDEM as lfdem
 
 
-def get_pvols(d, radius1, radius2):
+def pvol(d, radius):
     if d == 2:
-        pvol1 = np.pi*radius1**2
-        pvol2 = np.pi*radius2**2
+        return np.pi*radius**2
+    elif d == 3:
+        return (4/3)*np.pi*radius**3
     else:
-        if d == 3:
-            pvol1 = (4/3)*np.pi*radius1**3
-            pvol2 = (4/3)*np.pi*radius2**3
-        else:
-            print("d = ", d, "???")
-
-    return pvol1, pvol2
+        raise RuntimeError("d = "+str(d)+" unhandled...")
 
 
 def get_volume(N, vf, vf_ratio, pvol1, pvol2):
@@ -55,7 +51,6 @@ def initialRandom(N, N1, radius1, radius2, lx, ly, lz):
 
     radii = radius1*np.ones(N)
     radii[N1:] = radius2
-
     radii = lfdem.DoubleVector(radii)
 
     return positions, radii
@@ -70,91 +65,141 @@ def printOutConf(fname, positions, radii, params):
 
         outf.write(header)
         for i in range(len(positions)):
-            outf.write(str(positions[i].x) + " " + str(positions[i].y) + " " +
-                       str(positions[i].z) + " " + str(radii[i]) + "\n")
+            outf.write(str(positions[i].x) + " " +
+                       str(positions[i].y) + " " +
+                       str(positions[i].z) + " " +
+                       str(radii[i]) + "\n")
 
 
-if len(sys.argv) != 3 and len(sys.argv) != 5:
-    print(sys.argv[0]+" N vf [ly/lx lz/lx]\n")
-    exit(1)
+def expandConfParams(**args):
+    """
+        Get a full set of parameters from independent parameters.
 
-radius1 = 1
-radius2 = 1.4
+        Possible args:
+        * 'N' (required)
+        * 'volume-fraction' (required)
+        * 'dimension' [3]
+        * 'radius-ratio' [1]: bidispersity size ratio: one species will have
+                              radius 1, the other radius 'radius-ratio'
+        * 'volume-fraction-ratio' [0.5]: vf ratio of particles with radius!=1
+                                         over particles with radius=1
+        * 'gradient-flow-ratio' [1]: size ratio gradient direction
+                                     over flow direction
+        * 'vorticity-flow-ratio' [1]: size ratio vorticity direction
+                                     over flow direction
 
-vf_ratio = 0.5
+    """
+    conf_params = {}
+    conf_params['N'] = args['N']
+    conf_params['vf'] = args['volume_fraction']
+    conf_params['d'] = args.pop('dimension', 3)
+    conf_params['vf_ratio'] = args.pop('volume_fraction_ratio', 0.5)
+    conf_params['rad1'] = 1
+    conf_params['rad2'] = args.pop('radius_ratio', 1)
+    ly_over_lx = args.pop('vorticity_flow_ratio', 1)
+    lz_over_lx = args.pop('gradient_flow_ratio', 1)
+    conf_params['vf1'] = conf_params['vf']*conf_params['vf_ratio']
+    conf_params['vf2'] = conf_params['vf'] - conf_params['vf1']
 
-ly_over_lx = 4
-lz_over_lx = 1
+    volume = get_volume(conf_params['N'],
+                        conf_params['vf'],
+                        conf_params['vf_ratio'],
+                        pvol(conf_params['d'], conf_params['rad1']),
+                        pvol(conf_params['d'], conf_params['rad2']))
 
-conf_params = {}
+    conf_params['N1'], conf_params['N2'] = get_N1N2(conf_params['N'],
+                                                    conf_params['vf1'],
+                                                    volume,
+                                                    pvol(conf_params['d'], 1))
+    conf_params['lx'], conf_params['ly'], conf_params['lz'] = \
+        get_BoxSize(conf_params['d'], volume, ly_over_lx, lz_over_lx)
 
-conf_params['d'] = 3
-conf_params['N'] = int(sys.argv[1])
-conf_params['vf'] = float(sys.argv[2])
-if len(sys.argv) == 5:
-    ly_over_lx = float(sys.argv[3])
-    lz_over_lx = float(sys.argv[4])
-else:
-    ly_over_lx = 1
-    lz_over_lx = 1
+    return conf_params
 
-conf_params['vf1'] = conf_params['vf']*vf_ratio
-conf_params['vf2'] = conf_params['vf'] - conf_params['vf1']
 
-simu = lfdem.Simulation()
-print(" LF_DEM version : ", simu.gitVersion())
-sys = simu.getSys()
+def generateConf(conf_params):
+    """
+        Generate an initial set of positions/radii that is relaxed up
+        to small remaining overlaps.
 
-pvol1, pvol2 = get_pvols(conf_params['d'], radius1, radius2)
-volume = \
-    get_volume(conf_params['N'], conf_params['vf'], vf_ratio, pvol1, pvol2)
-conf_params['N1'], conf_params['N2'] = \
-    get_N1N2(conf_params['N'], conf_params['vf1'], volume, pvol1)
-conf_params['lx'], conf_params['ly'], conf_params['lz'] = \
-    get_BoxSize(conf_params['d'], volume, ly_over_lx, lz_over_lx)
+        conf_params in a dict of parameters that must contain:
+        'd', 'N', 'N1', 'rad1', 'rad2', 'lx', 'ly', 'lz'.
 
-positions, radii = \
-    initialRandom(conf_params['N'], conf_params['N1'], radius1, radius2,
-                  conf_params['lx'], conf_params['ly'], conf_params['lz'])
+    """
+    positions, radii = initialRandom(conf_params['N'],
+                                     conf_params['N1'],
+                                     conf_params['rad1'],
+                                     conf_params['rad2'],
+                                     conf_params['lx'],
+                                     conf_params['ly'],
+                                     conf_params['lz'])
 
-simu.setDefaultParameters("h")
-simu.p.np_fixed = 0
-sys.zero_shear = True
-simu.p.kn = 1
-simu.p.friction_model = 0
-simu.p.integration_method = 0
-simu.p.disp_max = 5e-3
-simu.p.lubrication_model = 0
-# simu.p.contact_relaxation_time = 1e-4
-sys.set_np(conf_params['N'])
+    simu = lfdem.Simulation()
+    print(" LF_DEM version : ", simu.gitVersion())
+    sys = simu.getSys()
 
-is2d = False
-sys.setupSystemPreConfiguration("rate", is2d)
-sys.setBoxSize(conf_params['lx'], conf_params['ly'], conf_params['lz'])
-sys.setConfiguration(positions, radii)
-sys.setupSystemPostConfiguration()
+    simu.setDefaultParameters("h")
+    simu.p.np_fixed = 0
+    sys.zero_shear = True
+    simu.p.kn = 1
+    simu.p.friction_model = 0
+    simu.p.integration_method = 0
+    simu.p.disp_max = 5e-3
+    simu.p.lubrication_model = 0
+    # simu.p.contact_relaxation_time = 1e-4
+    sys.set_np(conf_params['N'])
 
-sys.checkNewInteraction()
-sys.updateInteractions()
+    is2d = conf_params['d'] == 2
+    sys.setupSystemPreConfiguration("rate", is2d)
+    sys.setBoxSize(conf_params['lx'], conf_params['ly'], conf_params['lz'])
+    sys.setConfiguration(positions, radii)
+    sys.setupSystemPostConfiguration()
 
-# print(conf_params, volume, pvol1, pvol2)
-sys.analyzeState()
-print("Generating", flush=True, end='')
-while sys.contact_nb/conf_params['N'] > 0.05 and sys.min_reduced_gap < -0.01:
-    sys.timeEvolution(sys.get_time()+2, -1)
+    sys.checkNewInteraction()
+    sys.updateInteractions()
+
+    # print(conf_params, volume, pvol1, pvol2)
     sys.analyzeState()
-    print(".", flush=True, end='')
+    print("Generating", flush=True, end='')
+    while sys.contact_nb/conf_params['N'] > 0.05\
+            and sys.min_reduced_gap < -0.01:
+        sys.timeEvolution(sys.get_time()+2, -1)
+        sys.analyzeState()
+        print(".", flush=True, end='')
 
-fname = "D"+str(conf_params['d']) +\
-        "N"+str(conf_params['N']) +\
-        "VF"+str(conf_params['vf']) +\
-        "Bidi"+str(radius2/radius1) +\
-        str(vf_ratio)
+    return np.array(sys.position), np.array(sys.radius)
 
-if conf_params['d'] == 3:
-    fname += "LyLx"+str(ly_over_lx)
-fname += "LzLx"+str(lz_over_lx)
-fname += ".dat"
-print("\n==========")
-print("Conf : ", fname)
-printOutConf(fname, sys.position, radii, conf_params)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-N', type=int, required=True)
+    parser.add_argument('-vf', '--volume-fraction', type=float, required=True)
+    parser.add_argument('-vfr', '--volume-fraction-ratio', type=float, default=0.5)
+    parser.add_argument('-zx', '--gradient-flow-ratio', type=float, default=1)
+    parser.add_argument('-yx', '--vorticity-flow-ratio', type=float, default=1)
+    parser.add_argument('-d', '--dimension', type=int, default=3)
+    parser.add_argument('-rr', '--radius-ratio', type=float, default=1.4)
+    parser.add_argument('-o', '--output')
+
+    args = vars(parser.parse_args(sys.argv[1:]))
+
+    conf_params = expandConfParams(**args)
+
+    pos, rad = generateConf(conf_params)
+    fname = "D"+str(conf_params['d'])
+    fname += "N"+str(conf_params['N'])
+    fname += "VF"+str(conf_params['vf'])
+
+    if conf_params['rad2']/conf_params['rad1'] != 1:
+        fname += "Bidi"+str(conf_params['rad2']/conf_params['rad1'])
+        fname += str(conf_params['vf_ratio'])
+    else:
+        fname += "Mono"
+
+    if conf_params['d'] == 3:
+        fname += "LyLx"+str(conf_params['ly']/conf_params['lx'])
+    fname += "LzLx"+str(conf_params['lz']/conf_params['lx'])
+    fname += ".dat"
+    print("\n==========")
+    print("Conf : ", fname)
+    printOutConf(fname, pos, rad, conf_params)
