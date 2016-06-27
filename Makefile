@@ -8,3 +8,4 @@ endif
 
 install:
 	cp *.py $(INSTALL_DIR)
+	cp LFDEM_confgen.py $(PYTHON_DIR)
