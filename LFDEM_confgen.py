@@ -58,8 +58,8 @@ def initialRandom(N, N1, radius1, radius2, lx, ly, lz):
 
 def printOutConf(fname, positions, radii, params):
     with open(fname, "w") as outf:
-        header = "# np1 np2 vf lx ly lz vf1 vf2 disp\n"+"# "
-        for p in ['N1', 'N2', 'vf', 'lx', 'ly', 'lz', 'vf1', 'vf2']:
+        header = "# np np1 np2 vf lx ly lz vf1 vf2 disp\n"+"# "
+        for p in ['N', 'N1', 'N2', 'vf', 'lx', 'ly', 'lz', 'vf1', 'vf2']:
             header += " "+str(params[p])
         header += " 0\n"
 
@@ -79,13 +79,13 @@ def expandConfParams(**args):
         * 'N' (required)
         * 'volume-fraction' (required)
         * 'dimension' [3]
-        * 'radius-ratio' [1]: bidispersity size ratio: one species will have
+        * 'radius_ratio' [1]: bidispersity size ratio: one species will have
                               radius 1, the other radius 'radius-ratio'
-        * 'volume-fraction-ratio' [0.5]: vf ratio of particles with radius!=1
+        * 'volume_fraction_ratio' [0.5]: vf ratio of particles with radius!=1
                                          over particles with radius=1
-        * 'gradient-flow-ratio' [1]: size ratio gradient direction
+        * 'gradient_flow_ratio' [1]: size ratio gradient direction
                                      over flow direction
-        * 'vorticity-flow-ratio' [1]: size ratio vorticity direction
+        * 'vorticity_flow_ratio' [1]: size ratio vorticity direction
                                      over flow direction
 
     """
@@ -117,7 +117,9 @@ def expandConfParams(**args):
     return conf_params
 
 
-def generateConf(conf_params):
+def generateConf(conf_params,
+                 stop_params={'contact_ratio': 0.05,
+                              'min_gap': -0.01}):
     """
         Generate an initial set of positions/radii that is relaxed up
         to small remaining overlaps.
@@ -161,8 +163,8 @@ def generateConf(conf_params):
     # print(conf_params, volume, pvol1, pvol2)
     sys.analyzeState()
     print("Generating", flush=True, end='')
-    while sys.contact_nb/conf_params['N'] > 0.05\
-            and sys.min_reduced_gap < -0.01:
+    while sys.contact_nb/conf_params['N'] > stop_params['contact_ratio']\
+            and sys.min_reduced_gap < stop_params['min_gap']:
         sys.timeEvolution(sys.get_time()+2, -1)
         sys.analyzeState()
         print(".", flush=True, end='')
