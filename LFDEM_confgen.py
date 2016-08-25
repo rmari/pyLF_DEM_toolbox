@@ -147,8 +147,8 @@ def generateConf(conf_params,
     simu.p.friction_model = 0
     simu.p.integration_method = 0
     simu.p.disp_max = 5e-3
-    simu.p.lubrication_model = 0
-    # simu.p.contact_relaxation_time = 1e-4
+    simu.p.lubrication_model = "none"
+    simu.p.contact_relaxation_time_tan = 1e-4
     sys.set_np(conf_params['N'])
 
     is2d = conf_params['d'] == 2
@@ -159,14 +159,13 @@ def generateConf(conf_params,
 
     sys.checkNewInteraction()
     sys.updateInteractions()
-
+    contact_nb = lfdem.countNumberOfContact(sys)
     # print(conf_params, volume, pvol1, pvol2)
-    sys.analyzeState()
     print("Generating", flush=True, end='')
-    while sys.contact_nb/conf_params['N'] > stop_params['contact_ratio']\
-            and sys.min_reduced_gap < stop_params['min_gap']:
+    while contact_nb[0]/conf_params['N'] > stop_params['contact_ratio']\
+            and lfdem.evaluateMinGap(sys) < stop_params['min_gap']:
         sys.timeEvolution(sys.get_time()+2, -1)
-        sys.analyzeState()
+        contact_nb = lfdem.countNumberOfContact(sys)
         print(".", flush=True, end='')
 
     return np.array(sys.position), np.array(sys.radius)
