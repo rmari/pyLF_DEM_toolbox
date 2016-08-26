@@ -34,13 +34,13 @@ def echoInput(in_args, simu):
 
     echofile.write("Script file "+__file__+" is:\n\n")
     for line in open(__file__, "r"):
-        echofile.write(line.strip("\n"))
+        echofile.write(line)
     echofile.write("\n")
 
     echofile.write("Parameter file "+in_args['params_file']+" is:\n\n")
 
     for line in open(in_args['params_file'], "r"):
-        echofile.write(line.strip("\n"))
+        echofile.write(line)
     echofile.close()
 
     if in_args['binary_conf']:
