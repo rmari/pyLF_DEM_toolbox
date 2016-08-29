@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import re
 import os
-import Simulation_LFDEM as lfdem
+import pyLFDEM as lfdem
 from shutil import copyfile
 
 
@@ -17,7 +17,7 @@ def getArgParser():
     parser.add_argument('-r', '--rate_primary', type=str, required=True)
     parser.add_argument('-rosp', '--rate_OSP_max_ratio',
                         type=float, required=True)
-    parser.add_argument('-aosp', '--strain_OSP', type=float, required=True)
+    parser.add_argument('-aosp', '--amplitude_OSP', type=float, required=True)
 
     return parser
 
@@ -52,8 +52,9 @@ def echoInput(in_args, simu):
 
 def getSimuName(in_args):
     simu_name = in_args['config_file'].replace(".dat", "").replace(".bin", "")\
-                + "_rate"+str(in_args['rate_primary'])\
-                + "_ratioOSP"+str(in_args['rate_OSP_max_ratio'])
+                +"_rate"+str(in_args['rate_primary'])\
+                +"_ratioOSP"+str(in_args['rate_OSP_max_ratio'])\
+                +"_amplitudeOSP"+str(in_args['amplitude_OSP'])
     return simu_name
 
 
@@ -75,6 +76,7 @@ def setupSimulation(in_args, simu):
     print(primary_rate, rate_unit)
     simu.setControlVariable("rate")
     simu.setDefaultParameters(rate_unit)
+    simu.p.cross_shear = True
     simu.readParameterFile(in_args['params_file'])
     simu.tagStrainParameters()
     simu.setupNonDimensionalization(primary_rate, rate_unit)
@@ -102,6 +104,7 @@ def setupSimulation(in_args, simu):
     simu.simu_name = getSimuName(in_args)
     simu.openOutputFiles(simu.simu_name)
     echoInput(in_args, simu)
+    in_args['rate_primary'] = sys.get_shear_rate()
     print("Simulation setup [ok]")
 
 
@@ -110,26 +113,41 @@ def calcShearRateAndDirection(rate_primary, rate_max_OSP, amplitude_OSP, time):
     rate_OSP = rate_max_OSP*np.cos(omega*time)
     total_rate = np.sqrt(rate_OSP**2 + rate_primary**2)
 
-    theta = np.atan2(rate_OSP/rate_primary)
+    theta = np.arctan2(rate_OSP, rate_primary)
     return total_rate, theta
 
+
+def outputData(tk, simu, binconf_counter):
+    sys = simu.getSys()
+    output_events =\
+        tk.getElapsedClocks(sys.get_time(),
+                            np.abs(sys.get_shear_strain()))
+    simu.generateOutput(output_events, binconf_counter)
+
+def updateShearDirection(sys, in_args):
+    rate, theta = calcShearRateAndDirection(in_args['rate_primary'],
+                              in_args['rate_OSP_max_ratio']*in_args['rate_primary'],
+                              in_args['amplitude_OSP'],
+                              sys.get_time())
+    sys.set_shear_rate(rate)
+
+    sys.setShearDirection(theta)
 
 def weaving_simu(in_args):
     simu = lfdem.Simulation()
     sys = simu.getSys()
 
     setupSimulation(in_args, simu)
-    rate, theta = calcShearRateAndDirection(in_args['rate_primary'],
-                                            in_args['rate_OSP_max_ratio'],
-                                            in_args['amplitude_OSP'],
-                                            sys.get_time())
 
-    sys.set_shear_rate(rate)
-    sys.setShearDirection(theta)
 
-    tk = simu.getTimeKeeper()
-
-    sys.timeEvolution(-1, s.first)
+    tk = simu.initTimeKeeper()
+    binconf_counter = 0
+    while simu.keepRunning():
+        updateShearDirection(sys, in_args)
+        simu.timeEvolutionUntilNextOutput(tk)
+        outputData(tk, simu, binconf_counter)
+        simu.printProgress()
+    print("Time evolution done")
 
 if __name__ == '__main__':
     p = getArgParser()
