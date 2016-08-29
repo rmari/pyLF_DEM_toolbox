@@ -2,3 +2,5 @@ config/Makefile_config.mk
 *dat
 *~
 *yap
+*txt
+*pyc
