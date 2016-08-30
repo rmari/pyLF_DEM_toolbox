@@ -14,7 +14,8 @@ def getArgParser():
     parser.add_argument('params_file', type=str)
     parser.add_argument('-n', '--binary_conf', action='store_true')
     parser.add_argument('-f', '--overwrite', action='store_true')
-    parser.add_argument('-r', '--rate_primary', type=str, required=True)
+    parser.add_argument('-r', '--rate_primary', type=str, required=False)
+    parser.add_argument('-s', '--shear_stress', type=str, required=False)
     parser.add_argument('-rosp', '--rate_OSP_max_ratio',
                         type=float, required=True)
     parser.add_argument('-aosp', '--amplitude_OSP', type=float, required=True)
@@ -50,11 +51,15 @@ def echoInput(in_args, simu):
     copyfile(in_args['config_file'], configfilename)
 
 
-def getSimuName(in_args):
-    simu_name = in_args['config_file'].replace(".dat", "").replace(".bin", "")\
-                +"_rate"+str(in_args['rate_primary'])\
-                +"_ratioOSP"+str(in_args['rate_OSP_max_ratio'])\
-                +"_amplitudeOSP"+str(in_args['amplitude_OSP'])
+def getSimuName(in_args, control_var):
+
+    simu_name = in_args['config_file'].replace(".dat", "").replace(".bin", "")
+    if control_var == "rate":
+        simu_name += "_rate"+str(in_args['rate_primary'])
+    else:
+        simu_name += "_stress"+str(in_args['shear_stress'])
+    simu_name += "_ratioOSP"+str(in_args['rate_OSP_max_ratio'])\
+                 + "_amplitudeOSP"+str(in_args['amplitude_OSP'])
     return simu_name
 
 
@@ -66,20 +71,37 @@ def getSuffix(value_str):
 def setupSimulation(in_args, simu):
     """ Setup for weaving simulations """
 
-    print("Weaving simulation")
+    print("Weaving simulation.")
+    print("Based on pyLFDEM version", simu.gitVersion())
 
     simu.force_to_run = in_args['overwrite']
 
-    rate_unit = str()
+    unit = str()
     primary_rate = str()
-    primary_rate, rate_unit = getSuffix(in_args['rate_primary'])
-    print(primary_rate, rate_unit)
-    simu.setControlVariable("rate")
-    simu.setDefaultParameters(rate_unit)
-    simu.p.cross_shear = True
+    shear_stress = str()
+    try:
+        primary_rate, unit = getSuffix(in_args['rate_primary'])
+        control_var = "rate"
+    except TypeError:  # stress control
+        try:
+            shear_stress, unit = getSuffix(in_args['shear_stress'])
+            control_var = "stress"
+        except TypeError:
+            print("No rate nor stress specified.")
+            exit(1)
+
+    simu.setControlVariable(control_var)
+
+    simu.setDefaultParameters(unit)
     simu.readParameterFile(in_args['params_file'])
+    simu.p.cross_shear = True
     simu.tagStrainParameters()
-    simu.setupNonDimensionalization(primary_rate, rate_unit)
+
+    if control_var == "rate":
+        simu.setupNonDimensionalization(primary_rate, unit)
+    else:
+        simu.setupNonDimensionalization(shear_stress, unit)
+
     simu.assertParameterCompatibility()
     simu.resolveTimeOrStrainParameters()
     if in_args['binary_conf']:
@@ -101,7 +123,7 @@ def setupSimulation(in_args, simu):
         simu.importConfiguration(in_args['config_file'])
 
     sys.setupSystemPostConfiguration()
-    simu.simu_name = getSimuName(in_args)
+    simu.simu_name = getSimuName(in_args, control_var)
     simu.openOutputFiles(simu.simu_name)
     echoInput(in_args, simu)
     in_args['rate_primary'] = sys.get_shear_rate()
@@ -124,21 +146,23 @@ def outputData(tk, simu, binconf_counter):
                             np.abs(sys.get_shear_strain()))
     simu.generateOutput(output_events, binconf_counter)
 
+
 def updateShearDirection(sys, in_args):
+    rateOSP = in_args['rate_OSP_max_ratio']*in_args['rate_primary']
     rate, theta = calcShearRateAndDirection(in_args['rate_primary'],
-                              in_args['rate_OSP_max_ratio']*in_args['rate_primary'],
-                              in_args['amplitude_OSP'],
-                              sys.get_time())
+                                            rateOSP,
+                                            in_args['amplitude_OSP'],
+                                            sys.get_time())
     sys.set_shear_rate(rate)
 
     sys.setShearDirection(theta)
+
 
 def weaving_simu(in_args):
     simu = lfdem.Simulation()
     sys = simu.getSys()
 
     setupSimulation(in_args, simu)
-
 
     tk = simu.initTimeKeeper()
     binconf_counter = 0
