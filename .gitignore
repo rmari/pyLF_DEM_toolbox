@@ -2,5 +2,10 @@ config/Makefile_config.mk
 *dat
 *~
 *yap
+
 __pycache__
 *.txt
+=======
+*txt
+*pyc
+

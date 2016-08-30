@@ -3,7 +3,7 @@
 import sys
 import numpy as np
 import argparse
-import Simulation_LFDEM as lfdem
+import pyLFDEM as lfdem
 
 
 def pvol(d, radius):
