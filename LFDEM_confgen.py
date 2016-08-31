@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import numpy as np
 import argparse
 import pyLFDEM as lfdem
+
 
 
 def pvol(d, radius):
