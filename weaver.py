@@ -51,6 +51,8 @@ def echoInput(in_args, simu):
 
 
 def getSimuName(in_args):
+    conf_name = in_args['config_file'].replace(".dat", "")
+    conf_name = conf_name[conf_name.rfind("/")+1:]
     simu_name = in_args['config_file'].replace(".dat", "").replace(".bin", "")\
                 +"_rate"+str(in_args['rate_primary'])\
                 +"_ratioOSP"+str(in_args['rate_OSP_max_ratio'])\
