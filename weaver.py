@@ -181,11 +181,9 @@ def weaving_simu(in_args):
                                         in_args['amplitude_OSP'])
     simu.p.time_interval_output_data = 0.01*sine_arch_strain
     simu.p.time_interval_output_config = 0.5*sine_arch_strain
-    print(simu.p.time_interval_output_data, simu.p.time_interval_output_config)
     tk = simu.initTimeKeeper()
     binconf_counter = 0
     while simu.keepRunning():
-        print(simu.p.time_interval_output_data, system.get_curvilinear_strain()+simu.p.time_interval_output_data)
         updateShearDirection(system, in_args)
         simu.timeEvolutionUntilNextOutput(tk)
         outputData(tk, simu, binconf_counter)
