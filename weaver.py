@@ -149,7 +149,7 @@ def outputData(tk, simu, binconf_counter):
     system = simu.getSys()
     output_events =\
         tk.getElapsedClocks(system.get_time(),
-                            np.abs(system.get_shear_strain()))
+                            np.abs(system.get_curvilinear_strain()))
     simu.generateOutput(output_events, binconf_counter)
 
 
@@ -179,12 +179,13 @@ def weaving_simu(in_args):
 
     sine_arch_strain = halfPeriodStrain(in_args['rate_OSP_max_ratio'],
                                         in_args['amplitude_OSP'])
-    simu.p.time_interval_output_data = 0.1*sine_arch_strain
+    simu.p.time_interval_output_data = 0.01*sine_arch_strain
     simu.p.time_interval_output_config = 0.5*sine_arch_strain
-
+    print(simu.p.time_interval_output_data, simu.p.time_interval_output_config)
     tk = simu.initTimeKeeper()
     binconf_counter = 0
     while simu.keepRunning():
+        print(simu.p.time_interval_output_data, system.get_curvilinear_strain()+simu.p.time_interval_output_data)
         updateShearDirection(system, in_args)
         simu.timeEvolutionUntilNextOutput(tk)
         outputData(tk, simu, binconf_counter)
