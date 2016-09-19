@@ -1,11 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import numpy as np
+from scipy import special
 import re
-import os
 import pyLFDEM as lfdem
 from shutil import copyfile
+import sys
 
 
 def getArgParser():
@@ -27,8 +28,8 @@ def echoInput(in_args, simu):
     echofile = open("input_data_"+simu.simu_name+".dat", "w")
     configfilename = "input_config_"+simu.simu_name+".dat"
     echofile.write("pyLF_DEM version "+simu.gitVersion()+"\n" +
-                   "called as:\n" + os.path.abspath(__file__) +
-                   ' '.join(in_args)+"\n\n")
+                   "called as:\n" +
+                   ' '.join(sys.argv)+"\n\n")
 
     echofile.write(in_args['config_file'] + " is copied in " +
                    configfilename + "\n\n")
@@ -43,7 +44,7 @@ def echoInput(in_args, simu):
     for line in open(in_args['params_file'], "r"):
         echofile.write(line)
     echofile.close()
-
+    print("echoed")
     if in_args['binary_conf']:
         configfilename += ".bin"
     else:
@@ -52,13 +53,18 @@ def echoInput(in_args, simu):
 
 
 def getSimuName(in_args, control_var):
+    conf_name = in_args['config_file'].replace(".dat", "").replace(".bin", "")
+    conf_name = conf_name[conf_name.rfind("/")+1:]
+    param_name = in_args['params_file'].replace(".txt", "").replace(".dat", "")
+    param_name = param_name[param_name.rfind("/")+1:]
 
-    simu_name = in_args['config_file'].replace(".dat", "").replace(".bin", "")
+    simu_name = conf_name + "_" + param_name
     if control_var == "rate":
         simu_name += "_rate"+str(in_args['rate_primary'])
     else:
         simu_name += "_stress"+str(in_args['shear_stress'])
-    simu_name += "_ratioOSP"+str(in_args['rate_OSP_max_ratio'])\
+    simu_name += "_rate"+str(in_args['rate_primary'])\
+                 + "_ratioOSP"+str(in_args['rate_OSP_max_ratio'])\
                  + "_amplitudeOSP"+str(in_args['amplitude_OSP'])
     return simu_name
 
@@ -111,22 +117,22 @@ def setupSimulation(in_args, simu):
         np_np_fixed = simu.get_np(in_args['config_file'])
         is2d = simu.isTwoDimension(in_args['config_file'])
 
-    sys = simu.getSys()
-    sys.set_np(np_np_fixed[0])
+    system = simu.getSys()
+    system.set_np(np_np_fixed[0])
     if np_np_fixed[1] > 0:
         simu.p.np_fixed = np_np_fixed[1]
 
-    sys.setupSystemPreConfiguration("rate", is2d)
+    system.setupSystemPreConfiguration("rate", is2d)
     if in_args['binary_conf']:
         simu.importConfigurationBinary(in_args['config_file'])
     else:
         simu.importConfiguration(in_args['config_file'])
 
-    sys.setupSystemPostConfiguration()
+    system.setupSystemPostConfiguration()
     simu.simu_name = getSimuName(in_args, control_var)
     simu.openOutputFiles(simu.simu_name)
     echoInput(in_args, simu)
-    in_args['rate_primary'] = sys.get_shear_rate()
+    in_args['rate_primary'] = system.get_shear_rate()
     print("Simulation setup [ok]")
 
 
@@ -140,34 +146,46 @@ def calcShearRateAndDirection(rate_primary, rate_max_OSP, amplitude_OSP, time):
 
 
 def outputData(tk, simu, binconf_counter):
-    sys = simu.getSys()
+    system = simu.getSys()
     output_events =\
-        tk.getElapsedClocks(sys.get_time(),
-                            np.abs(sys.get_shear_strain()))
+        tk.getElapsedClocks(system.get_time(),
+                            np.abs(system.get_shear_strain()))
     simu.generateOutput(output_events, binconf_counter)
 
 
-def updateShearDirection(sys, in_args):
-    rateOSP = in_args['rate_OSP_max_ratio']*in_args['rate_primary']
-    rate, theta = calcShearRateAndDirection(in_args['rate_primary'],
-                                            rateOSP,
-                                            in_args['amplitude_OSP'],
-                                            sys.get_time())
-    sys.set_shear_rate(rate)
+def updateShearDirection(system, in_args):
+    rate_OSP = in_args['rate_OSP_max_ratio']*in_args['rate_primary']
+    rate, theta =\
+        calcShearRateAndDirection(in_args['rate_primary'],
+                                  rate_OSP,
+                                  in_args['amplitude_OSP'],
+                                  system.get_time())
+    system.set_shear_rate(rate)
 
-    sys.setShearDirection(theta)
+    system.setShearDirection(theta)
+
+
+def halfPeriodStrain(rate_ratio_OSP, amplitude_OSP):
+    strain = special.ellipe(rate_ratio_OSP**2/(1+rate_ratio_OSP**2))
+    strain *= 2*np.sqrt(1+rate_ratio_OSP**2)*amplitude_OSP/rate_ratio_OSP
+    return strain
 
 
 def weaving_simu(in_args):
     simu = lfdem.Simulation()
-    sys = simu.getSys()
+    system = simu.getSys()
 
     setupSimulation(in_args, simu)
+
+    sine_arch_strain = halfPeriodStrain(in_args['rate_OSP_max_ratio'],
+                                        in_args['amplitude_OSP'])
+    simu.p.time_interval_output_data = 0.1*sine_arch_strain
+    simu.p.time_interval_output_config = 0.5*sine_arch_strain
 
     tk = simu.initTimeKeeper()
     binconf_counter = 0
     while simu.keepRunning():
-        updateShearDirection(sys, in_args)
+        updateShearDirection(system, in_args)
         simu.timeEvolutionUntilNextOutput(tk)
         outputData(tk, simu, binconf_counter)
         simu.printProgress()
