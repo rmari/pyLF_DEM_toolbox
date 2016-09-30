@@ -179,12 +179,19 @@ def weaving_simu(in_args):
 
     sine_arch_strain = halfPeriodStrain(in_args['rate_OSP_max_ratio'],
                                         in_args['amplitude_OSP'])
-    simu.p.time_interval_output_data = 0.01*sine_arch_strain
-    simu.p.time_interval_output_config = 0.5*sine_arch_strain
+
+    if in_args['amplitude_OSP'] > 0:
+        print("[Note] Overriding time_interval_output_* in user parameter file.")
+        arch_ratio_data = 200
+        arch_ratio_par = 10
+        simu.p.time_interval_output_data = sine_arch_strain/arch_ratio_data
+        simu.p.time_interval_output_config = sine_arch_strain/arch_ratio_par
     tk = simu.initTimeKeeper()
     binconf_counter = 0
+    print(simu.keepRunning())
     while simu.keepRunning():
-        updateShearDirection(system, in_args)
+        if in_args['amplitude_OSP'] > 0:
+            updateShearDirection(system, in_args)
         simu.timeEvolutionUntilNextOutput(tk)
         outputData(tk, simu, binconf_counter)
         simu.printProgress()
