@@ -118,7 +118,7 @@ def expandConfParams(**args):
     return conf_params
 
 
-def generateConf(conf_params,
+def generateConf(simu, conf_params,
                  stop_params={'contact_ratio': 0.05,
                               'min_gap': -0.01}):
     """
@@ -137,8 +137,6 @@ def generateConf(conf_params,
                                      conf_params['ly'],
                                      conf_params['lz'])
 
-    simu = lfdem.Simulation()
-    print(" LF_DEM version : ", simu.gitVersion())
     sys = simu.getSys()
 
     simu.setDefaultParameters("h")
@@ -168,7 +166,6 @@ def generateConf(conf_params,
         sys.timeEvolution(sys.get_time()+2, -1)
         contact_nb = lfdem.countNumberOfContact(sys)
         print(".", flush=True, end='')
-
     return np.array(sys.position), np.array(sys.radius)
 
 
@@ -187,7 +184,10 @@ if __name__ == '__main__':
 
     conf_params = expandConfParams(**args)
 
-    pos, rad = generateConf(conf_params)
+    simu = lfdem.Simulation()
+    print(" LF_DEM version : ", simu.gitVersion())
+
+    pos, rad = generateConf(simu, conf_params)
     fname = "D"+str(conf_params['d'])
     fname += "N"+str(conf_params['N'])
     fname += "VF"+str(conf_params['vf'])
