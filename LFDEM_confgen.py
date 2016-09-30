@@ -6,7 +6,6 @@ import argparse
 import pyLFDEM as lfdem
 
 
-
 def pvol(d, radius):
     if d == 2:
         return np.pi*radius**2
@@ -171,13 +170,20 @@ def generateConf(simu, conf_params,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-N', type=int, required=True)
-    parser.add_argument('-vf', '--volume-fraction', type=float, required=True)
-    parser.add_argument('-vfr', '--volume-fraction-ratio', type=float, default=0.5)
-    parser.add_argument('-zx', '--gradient-flow-ratio', type=float, default=1)
-    parser.add_argument('-yx', '--vorticity-flow-ratio', type=float, default=1)
-    parser.add_argument('-d', '--dimension', type=int, default=3)
-    parser.add_argument('-rr', '--radius-ratio', type=float, default=1.4)
+    parser.add_argument('-N',
+                        type=int, required=True)
+    parser.add_argument('-vf', '--volume-fraction',
+                        type=float, required=True)
+    parser.add_argument('-vfr', '--volume-fraction-ratio',
+                        type=float, default=0.5)
+    parser.add_argument('-zx', '--gradient-flow-ratio',
+                        type=float, default=1)
+    parser.add_argument('-yx', '--vorticity-flow-ratio',
+                        type=float, default=1)
+    parser.add_argument('-d', '--dimension',
+                        type=int, default=3)
+    parser.add_argument('-rr', '--radius-ratio',
+                        type=float, default=1.4)
     parser.add_argument('-o', '--output')
 
     args = vars(parser.parse_args(sys.argv[1:]))
