@@ -147,21 +147,28 @@ def echo_simu(in_args):
     simu.p.time_interval_output_data = 2*in_args['amplitude']/arch_ratio_data
     simu.p.time_interval_output_config = 2*in_args['amplitude']/arch_ratio_par
 
-    tk = simu.initTimeKeeper()
+    tk = lfdem.TimeKeeper()
+    tk.addClock("data",
+                lfdem.LinearClock(simu.p.time_interval_output_data, True))
+    tk.addClock("data",
+                lfdem.LinearClock(simu.p.time_interval_output_config, True))
+    tk.addClock("reverse",
+                lfdem.LinearClock(in_args["amplitude"],
+                                  2*in_args["amplitude"],
+                                  True))
+    print(in_args["amplitude"])
     binconf_counter = 0
-
-    system.setShearDirection(0)
+    shear_dir = 0
+    system.setShearDirection(shear_dir)
 
     while simu.keepRunning():
         simu.timeEvolutionUntilNextOutput(tk)
         outputData(tk, simu, binconf_counter)
         simu.printProgress()
-        if system.get_strain().x >= in_args["amplitude"]:
-            # time to go backward!
-            system.setShearDirection(np.pi)
-        if system.get_strain().x <= -in_args["amplitude"]:
-            # time to go forward!
-            system.setShearDirection(0)
+        if "reverse" in tk.getElapsedClocks(system.get_time(),
+                                            system.get_curvilinear_strain()):
+            shear_dir = np.pi - shear_dir
+            system.setShearDirection(shear_dir)
 
     print("Time evolution done")
 
