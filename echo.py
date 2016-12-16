@@ -163,12 +163,14 @@ def echo_simu(in_args):
 
     while simu.keepRunning():
         simu.timeEvolutionUntilNextOutput(tk)
-        outputData(tk, simu, binconf_counter)
-        simu.printProgress()
-        if "reverse" in tk.getElapsedClocks(system.get_time(),
-                                            system.get_curvilinear_strain()):
+        output_events =\
+            tk.getElapsedClocks(system.get_time(),
+                                np.abs(system.get_curvilinear_strain()))
+        simu.generateOutput(output_events, binconf_counter)
+        if "reverse" in output_events:
             shear_dir = np.pi - shear_dir
             system.setShearDirection(shear_dir)
+        simu.printProgress()
 
     print("Time evolution done")
 
