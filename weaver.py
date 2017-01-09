@@ -181,7 +181,8 @@ def weaving_simu(in_args):
                                         in_args['amplitude_OSP'])
 
     if in_args['amplitude_OSP'] > 0:
-        print("[Note] Overriding time_interval_output_* in user parameter file.")
+        print("""[Note]
+                 Overriding time_interval_output_* in user parameter file.""")
         arch_ratio_data = 200
         arch_ratio_par = 10
         simu.p.time_interval_output_data = sine_arch_strain/arch_ratio_data
