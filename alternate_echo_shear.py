@@ -57,7 +57,9 @@ def getSimuName(in_args, control_var):
 
     simu_name = conf_name + "_" + param_name
     simu_name += "_echo_and_shear"\
-                 + "_amplitude"+str(in_args['amplitude'])
+                 + "_amplitude"+str(in_args['amplitude'])\
+                 + "_"+str(in_args['oscillation_nb'])+"periods"\
+                 + "_"+str(in_args['shear_strain'])+"straight"
     return simu_name
 
 
