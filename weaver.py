@@ -187,16 +187,38 @@ def weaving_simu(in_args):
         arch_ratio_par = 10
         simu.p.time_interval_output_data = sine_arch_strain/arch_ratio_data
         simu.p.time_interval_output_config = sine_arch_strain/arch_ratio_par
-    tk = simu.initTimeKeeper()
+        arch_ratio_direction = 20*in_args['rate_OSP_max_ratio']
+        if in_args['rate_OSP_max_ratio'] < 10:
+            time_interval_change_direction = simu.p.time_interval_output_data
+        else:
+            # necessary for precise strain trajectory
+            time_interval_change_direction = \
+                    sine_arch_strain/arch_ratio_direction
+
+    tk = lfdem.TimeKeeper()
+    tk.addClock("data",
+                lfdem.LinearClock(simu.p.time_interval_output_data, True))
+    tk.addClock("config",
+                lfdem.LinearClock(simu.p.time_interval_output_config, True))
+    tk.addClock("update_direction",
+                lfdem.LinearClock(time_interval_change_direction, True))
     binconf_counter = 0
-    print(simu.keepRunning())
+    if in_args['amplitude_OSP'] > 0:
+        updateShearDirection(system, in_args)
     while simu.keepRunning():
-        if in_args['amplitude_OSP'] > 0:
+        next_strain = tk.nextStrain()[0]
+        system.timeEvolutionNoStress(-1, next_strain)
+        events = tk.getElapsedClocks(system.get_time(),
+                                     np.abs(system.get_curvilinear_strain()))
+        if "update_direction" in events:
             updateShearDirection(system, in_args)
-        simu.timeEvolutionUntilNextOutput(tk)
-        outputData(tk, simu, binconf_counter)
-        simu.printProgress()
+        if "data" in events or "config" in events:
+            system.timeEvolution(-1, next_strain)
+            simu.generateOutput(events, binconf_counter)
+            simu.printProgress()
+
     print("Time evolution done")
+
 
 if __name__ == '__main__':
     p = getArgParser()
