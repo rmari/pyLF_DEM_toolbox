@@ -153,22 +153,21 @@ def outputData(tk, simu, binconf_counter):
     simu.generateOutput(output_events, binconf_counter)
 
 
-def updateShearDirection(system, in_args):
-    rate_OSP = in_args['rate_OSP_max_ratio']*in_args['rate_primary']
-    rate, theta =\
-        calcShearRateAndDirection(in_args['rate_primary'],
-                                  rate_OSP,
-                                  in_args['amplitude_OSP'],
-                                  system.get_time())
-    system.set_shear_rate(rate)
+def getArchStrainData(in_args, n):
+    aosp = in_args['amplitude_OSP']
+    rosp = in_args['rate_OSP_max_ratio']
 
-    system.setShearDirection(theta)
+    x = np.linspace(0, 2*np.pi, 4*n+5)*aosp/rosp
+    z = aosp*np.sin(rosp*x/aosp)
+    dx = np.diff(x)
+    dz = np.diff(z)
+    thetas = np.arctan2(dz, dx)
+    strain_steps = np.sqrt(dx**2+dz**2)
 
-
-def halfPeriodStrain(rate_ratio_OSP, amplitude_OSP):
-    strain = special.ellipe(rate_ratio_OSP**2/(1+rate_ratio_OSP**2))
-    strain *= 2*np.sqrt(1+rate_ratio_OSP**2)*amplitude_OSP/rate_ratio_OSP
-    return strain
+    rate_primary = in_args['rate_primary']
+    rate_OSP = rosp*rate_primary*np.cos(rosp*x/aosp)
+    shear_rates = np.sqrt(rate_OSP**2 + rate_primary**2)
+    return shear_rates, thetas, strain_steps
 
 
 def weaving_simu(in_args):
@@ -177,45 +176,27 @@ def weaving_simu(in_args):
 
     setupSimulation(in_args, simu)
 
-    sine_arch_strain = halfPeriodStrain(in_args['rate_OSP_max_ratio'],
-                                        in_args['amplitude_OSP'])
-
     if in_args['amplitude_OSP'] > 0:
         print("""[Note]
                  Overriding time_interval_output_* in user parameter file.""")
-        arch_ratio_data = 200
-        arch_ratio_par = 10
-        simu.p.time_interval_output_data = sine_arch_strain/arch_ratio_data
-        simu.p.time_interval_output_config = sine_arch_strain/arch_ratio_par
-        arch_ratio_direction = 20*in_args['rate_OSP_max_ratio']
-        if in_args['rate_OSP_max_ratio'] < 10:
-            time_interval_change_direction = simu.p.time_interval_output_data
-        else:
-            # necessary for precise strain trajectory
-            time_interval_change_direction = \
-                    sine_arch_strain/arch_ratio_direction
-
-    tk = lfdem.TimeKeeper()
-    tk.addClock("data",
-                lfdem.LinearClock(simu.p.time_interval_output_data, True))
-    tk.addClock("config",
-                lfdem.LinearClock(simu.p.time_interval_output_config, True))
-    tk.addClock("update_direction",
-                lfdem.LinearClock(time_interval_change_direction, True))
+    arch_data_point_nb = 20
     binconf_counter = 0
-    if in_args['amplitude_OSP'] > 0:
-        updateShearDirection(system, in_args)
-    while simu.keepRunning():
-        next_strain = tk.nextStrain()[0]
-        system.timeEvolutionNoStress(-1, next_strain)
-        events = tk.getElapsedClocks(system.get_time(),
-                                     np.abs(system.get_curvilinear_strain()))
-        if "update_direction" in events:
-            updateShearDirection(system, in_args)
-        if "data" in events or "config" in events:
-            system.timeEvolution(-1, next_strain)
-            simu.generateOutput(events, binconf_counter)
-            simu.printProgress()
+    rates, thetas, strain_steps = getArchStrainData(in_args,
+                                                    arch_data_point_nb)
+    simu.generateOutput(["data"], binconf_counter)
+    while True:
+        for rate, theta, strain_step in zip(rates, thetas, strain_steps):
+            if simu.keepRunning():
+                system.set_shear_rate(rate)
+                system.setShearDirection(theta)
+
+                strain = system.get_curvilinear_strain()
+                next_strain = strain + strain_step
+                system.timeEvolution(-1, next_strain)
+                simu.generateOutput(["data"], binconf_counter)
+                simu.printProgress()
+            else:
+                sys.exit(0)
 
     print("Time evolution done")
 
