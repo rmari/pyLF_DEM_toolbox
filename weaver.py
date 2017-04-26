@@ -2,7 +2,6 @@
 
 import argparse
 import numpy as np
-from scipy import special
 import re
 import pyLFDEM as lfdem
 from shutil import copyfile
