@@ -149,7 +149,7 @@ def alternate_simu(in_args):
     in_args['amplitude'] = abs(in_args['amplitude'])
 
     print("[Note] Overriding time_interval_output_* in user parameter file.")
-    arch_ratio_data = 200
+    arch_ratio_data = 10
     arch_ratio_par = 1
     simu.p.time_interval_output_data = 2*in_args['amplitude']/arch_ratio_data
     simu.p.time_interval_output_config = 2*in_args['amplitude']/arch_ratio_par
@@ -197,6 +197,7 @@ def alternate_simu(in_args):
         simu.printProgress()
 
     print("Time evolution done")
+
 
 if __name__ == '__main__':
     p = getArgParser()
