@@ -15,8 +15,6 @@ def getArgParser():
     parser.add_argument('-n', '--binary_conf', action='store_true')
     parser.add_argument('-f', '--overwrite', action='store_true')
     parser.add_argument('-a', '--amplitude', type=float, required=True)
-    parser.add_argument('-g', '--shear_strain', type=float, required=True)
-    parser.add_argument('-p', '--oscillation_nb', type=int, required=True)
 
     return parser
 
@@ -56,10 +54,8 @@ def getSimuName(in_args, control_var):
     param_name = param_name[param_name.rfind("/")+1:]
 
     simu_name = conf_name + "_" + param_name
-    simu_name += "_echo_and_shear"\
-                 + "_amplitude"+str(in_args['amplitude'])\
-                 + "_"+str(in_args['oscillation_nb'])+"periods"\
-                 + "_"+str(in_args['shear_strain'])+"straight"
+    simu_name += "_echo_strobo"\
+                 + "_amplitude"+str(in_args['amplitude'])
     return simu_name
 
 
@@ -91,7 +87,7 @@ def importConf(simu, in_args):
 def setupSimulation(in_args, simu):
     """ Setup for echo simulations """
 
-    print("Alternate Echo/Shear simulation.")
+    print("Echo simulation.")
     print("Based on pyLFDEM version", simu.gitVersion())
 
     simu.force_to_run = in_args['overwrite']
@@ -101,6 +97,8 @@ def setupSimulation(in_args, simu):
     simu.setDefaultParameters("h")
     simu.readParameterFile(in_args['params_file'])
     simu.p.cross_shear = True
+    simu.p.out_data_particle = True
+    simu.p.out_data_interaction = True
     simu.tagStrainParameters()
 
     simu.setupNonDimensionalization(1, "h")
@@ -128,19 +126,7 @@ def outputData(tk, simu, binconf_counter):
     simu.generateOutput(output_events, binconf_counter)
 
 
-def getShearDirection(events, shear_dir):
-    if shear_dir != 0:  # we are in echo mode
-        if "reverse" in events:
-            shear_dir = -shear_dir
-        if "shear_on" in events:
-            shear_dir = 0
-    else:
-        if "echo_on" in events:
-            shear_dir = np.pi/2
-    return shear_dir
-
-
-def alternate_simu(in_args):
+def echo_simu(in_args):
     simu = lfdem.Simulation()
     system = simu.getSys()
 
@@ -149,51 +135,33 @@ def alternate_simu(in_args):
     in_args['amplitude'] = abs(in_args['amplitude'])
 
     print("[Note] Overriding time_interval_output_* in user parameter file.")
-    arch_ratio_data = 10
-    arch_ratio_par = 1
-    simu.p.time_interval_output_data = 2*in_args['amplitude']/arch_ratio_data
-    simu.p.time_interval_output_config = 2*in_args['amplitude']/arch_ratio_par
+
+    simu.p.time_interval_output_data = 4*in_args['amplitude']  # every period
+    simu.p.time_interval_output_config = 4*in_args['amplitude']  # every period
 
     tk = lfdem.TimeKeeper()
     tk.addClock("data",
                 lfdem.LinearClock(simu.p.time_interval_output_data, True))
     tk.addClock("config",
                 lfdem.LinearClock(simu.p.time_interval_output_config, True))
-
-    echoing_time = 4*in_args["oscillation_nb"]*in_args["amplitude"]
-    alternating_period = echoing_time + in_args["shear_strain"]
-    tk.addClock("echo_on",
-                lfdem.LinearClock(alternating_period,
-                                  True))
-    tk.addClock("shear_on",
-                lfdem.LinearClock(echoing_time,
-                                  alternating_period,
-                                  True))
     tk.addClock("reverse",
                 lfdem.LinearClock(in_args["amplitude"],
                                   2*in_args["amplitude"],
                                   True))
+    print(in_args["amplitude"])
     binconf_counter = 0
-    shear_dir = np.pi/2
+    shear_dir = 0
     system.setShearDirection(shear_dir)
 
     while simu.keepRunning():
         simu.timeEvolutionUntilNextOutput(tk)
-        events =\
+        output_events =\
             tk.getElapsedClocks(system.get_time(),
                                 np.abs(system.get_curvilinear_strain()))
-        simu.generateOutput(events, binconf_counter)
-        shear_dir = getShearDirection(events, shear_dir)
-        system.setShearDirection(shear_dir)
-
-        if "shear_on" in events:
-            tk.removeClock("reverse")
-        if "echo_on" in events:
-            reverse_clock =\
-                lfdem.LinearClock(system.get_time()+in_args["amplitude"],
-                                  2*in_args["amplitude"],
-                                  True)
-            tk.addClock("reverse", reverse_clock)
+        simu.generateOutput(output_events, binconf_counter)
+        if "reverse" in output_events:
+            shear_dir = np.pi - shear_dir
+            system.setShearDirection(shear_dir)
         simu.printProgress()
 
     print("Time evolution done")
@@ -203,6 +171,6 @@ if __name__ == '__main__':
     p = getArgParser()
     args = vars(p.parse_args())
     try:
-        alternate_simu(args)
+        echo_simu(args)
     except RuntimeError as e:
         print(e)

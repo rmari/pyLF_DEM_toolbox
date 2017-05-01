@@ -58,6 +58,7 @@ def getSimuName(in_args, control_var):
     param_name = param_name[param_name.rfind("/")+1:]
 
     simu_name = conf_name + "_" + param_name
+    simu_name += "_weaver_strobo"
     if control_var == "rate":
         simu_name += "_rate"+str(in_args['rate_primary'])
     else:
@@ -100,6 +101,9 @@ def setupSimulation(in_args, simu):
     simu.setDefaultParameters(unit)
     simu.readParameterFile(in_args['params_file'])
     simu.p.cross_shear = True
+    simu.p.out_data_particle = True
+    simu.p.out_data_interaction = True
+
     simu.tagStrainParameters()
 
     if control_var == "rate":
@@ -135,23 +139,6 @@ def setupSimulation(in_args, simu):
     print("Simulation setup [ok]")
 
 
-def calcShearRateAndDirection(rate_primary, rate_max_OSP, amplitude_OSP, time):
-    omega = rate_max_OSP/amplitude_OSP
-    rate_OSP = rate_max_OSP*np.cos(omega*time)
-    total_rate = np.sqrt(rate_OSP**2 + rate_primary**2)
-
-    theta = np.arctan2(rate_OSP, rate_primary)
-    return total_rate, theta
-
-
-def outputData(tk, simu, binconf_counter):
-    system = simu.getSys()
-    output_events =\
-        tk.getElapsedClocks(system.get_time(),
-                            np.abs(system.get_curvilinear_strain()))
-    simu.generateOutput(output_events, binconf_counter)
-
-
 def getArchStrainData(in_args, n):
     aosp = in_args['amplitude_OSP']
     rosp = in_args['rate_OSP_max_ratio']
@@ -178,11 +165,11 @@ def weaving_simu(in_args):
     if in_args['amplitude_OSP'] > 0:
         print("""[Note]
                  Overriding time_interval_output_* in user parameter file.""")
-    arch_data_point_nb = 20
+    arch_data_point_nb = 10
     binconf_counter = 0
     rates, thetas, strain_steps = getArchStrainData(in_args,
                                                     arch_data_point_nb)
-    simu.generateOutput(["data"], binconf_counter)
+    simu.generateOutput(["data", "config"], binconf_counter)
     while True:
         for rate, theta, strain_step in zip(rates, thetas, strain_steps):
             if simu.keepRunning():
@@ -196,6 +183,7 @@ def weaving_simu(in_args):
                 simu.printProgress()
             else:
                 sys.exit(0)
+        simu.generateOutput(["config"], binconf_counter)
 
     print("Time evolution done")
 
