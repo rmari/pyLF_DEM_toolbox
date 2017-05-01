@@ -65,7 +65,7 @@ def getSimuName(in_args, control_var):
                  + "_"+str(in_args['shear_strain'])+"straight"
     if in_args['time_ratio'] is not None:
         simu_name += "_rate"+str(in_args['rate_primary'])
-
+        simu_name += "_ratio"+str(in_args['time_ratio'])
     return simu_name
 
 
