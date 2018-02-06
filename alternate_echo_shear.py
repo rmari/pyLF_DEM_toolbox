@@ -17,7 +17,8 @@ def getArgParser():
     parser.add_argument('-a', '--amplitude', type=float, required=True)
     parser.add_argument('-g', '--shear_strain', type=float, required=True)
     parser.add_argument('-p', '--oscillation_nb', type=int, required=True)
-
+    parser.add_argument('-r', '--rate_primary', type=str, required=False)
+    parser.add_argument('-t', '--time_split', type=float, required=False, default=0.5)
     return parser
 
 
@@ -60,6 +61,8 @@ def getSimuName(in_args, control_var):
                  + "_amplitude"+str(in_args['amplitude'])\
                  + "_"+str(in_args['oscillation_nb'])+"periods"\
                  + "_"+str(in_args['shear_strain'])+"straight"
+    if 'rate_primary' in in_args:
+        simu_name += "_rate"+str(in_args['rate_primary'])
     return simu_name
 
 
@@ -96,14 +99,20 @@ def setupSimulation(in_args, simu):
 
     simu.force_to_run = in_args['overwrite']
 
-    simu.setControlVariable("rate")
+    if 'rate_primary' in in_args:
+        primary_rate, unit = getSuffix(in_args['rate_primary'])
+    else:
+        primary_rate, unit = 1, "h"
 
-    simu.setDefaultParameters("h")
+    control_var = "rate"
+    simu.setControlVariable(control_var)
+
+    simu.setDefaultParameters(unit)
     simu.readParameterFile(in_args['params_file'])
     simu.p.cross_shear = True
     simu.tagStrainParameters()
 
-    simu.setupNonDimensionalization(1, "h")
+    simu.setupNonDimensionalization(primary_rate, unit)
 
     simu.assertParameterCompatibility()
     simu.resolveTimeOrStrainParameters()
