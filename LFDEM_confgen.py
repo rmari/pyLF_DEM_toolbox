@@ -277,7 +277,8 @@ def generateConf(simu, conf_params,
             and lfdem.evaluateMinGap(sys) < stop_params['min_gap']:
         sys.timeEvolution(sys.get_time()+2, -1)
         contact_nb = lfdem.countNumberOfContact(sys)
-        print(".", flush=True, end='')
+        # print(".", flush=True, end='')
+        print(contact_nb[0]/conf_params['N'], lfdem.evaluateMinGap(sys))
 
     if not conf_params['walls']:
         return np.array(sys.position), np.array(sys.radius)
@@ -339,8 +340,8 @@ if __name__ == '__main__':
 
     if args['soft']:
         conf = generateConf(simu, conf_params,
-                            {'contact_ratio': 20,
-                            'min_gap': -1})
+                            {'contact_ratio': 8,
+                            'min_gap': -2})
     else:
         conf = generateConf(simu, conf_params)
     
