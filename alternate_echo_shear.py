@@ -20,7 +20,6 @@ def getArgParser():
     parser.add_argument('-r', '--rate_primary',
                         type=str, required=False, default="1h")
     parser.add_argument('-t', '--time_ratio', type=float)
-
     return parser
 
 
