@@ -67,12 +67,13 @@ def printOutConf(fname, positions, radii, params, fixed_velocities=None):
             header += " "+str(params[p])
         if params['walls']:
             header += " 0 "+ str(params['np_fixed'])+ " 6\n"
-        else:        
+        else:
             header += " 0\n"
 
         outf.write(header)
+        np_mobile = params['N']
         if "np_fixed" in params:
-            np_mobile = params['N']-params['np_fixed']
+            np_mobile -= params['np_fixed']
         for i in range(np_mobile):
             outf.write(str(positions[i].x) + " " +
                        str(positions[i].y) + " " +
@@ -142,7 +143,7 @@ def setupSimu(simu, init_conf):
     rate.value = 0
 
     simu.setupFlow(rate)
-    
+
     PFactory = lfdem.ParameterSetFactory()
     # simu.setupNonDimensionalization(rate, PFactory)
     simu.p = PFactory.getParameterSet()
@@ -154,7 +155,7 @@ def setupSimu(simu, init_conf):
     simu.p.disp_max = 5e-3
     simu.p.lubrication_model = "none"
     simu.p.contact_relaxation_time_tan = 1e-4
-    
+
     sys = simu.getSys()
     sys.zero_shear=True
     sys.mobile_fixed = True
@@ -205,23 +206,23 @@ def generateConf(simu, conf_params,
 
         wall_part_rad = 1
 
-        wall_part_nb_x = int(conf.lx/wall_part_rad) + 1 
+        wall_part_nb_x = int(conf.lx/wall_part_rad) + 1
         wall_part_nb_y = int(conf.ly/wall_part_rad) + 1
         x_spacing = conf.lx/wall_part_nb_x
         y_spacing = conf.ly/wall_part_nb_y
 
         wall_part_nb = wall_part_nb_x*wall_part_nb_y
         wall_part_pos = np.zeros((wall_part_nb, 3))
-        wall_part_pos[:, 0] = np.tile(np.linspace(0, 
-                                                  conf.lx, 
-                                                  wall_part_nb_x, 
-                                                  endpoint=False), 
+        wall_part_pos[:, 0] = np.tile(np.linspace(0,
+                                                  conf.lx,
+                                                  wall_part_nb_x,
+                                                  endpoint=False),
                                       wall_part_nb_y)\
                                       + 0.5*x_spacing
-        wall_part_pos[:, 1] = np.repeat(np.linspace(0, 
-                                                    conf.ly, 
+        wall_part_pos[:, 1] = np.repeat(np.linspace(0,
+                                                    conf.ly,
                                                     wall_part_nb_y,
-                                                    endpoint=False), 
+                                                    endpoint=False),
                                         wall_part_nb_x)\
                                         + 0.5*y_spacing
 
@@ -259,14 +260,14 @@ def generateConf(simu, conf_params,
             vel.z = v[2]
             conf.fixed_velocities.push_back(vel)
 
-        
+
         conf.lz = conf_params['lz']
         conf_params['np_fixed'] = conf.fixed_velocities.size()
         conf_params['N'] += conf_params['np_fixed']
 
     setupSimu(simu, conf)
 
-    sys = simu.getSys()    
+    sys = simu.getSys()
     if conf_params['walls']:
         simu.p.simulation_mode = 31
     sys.checkNewInteraction()
@@ -344,11 +345,11 @@ if __name__ == '__main__':
                             'min_gap': -2})
     else:
         conf = generateConf(simu, conf_params)
-    
+
 
     print("\n==========")
     print("Conf : ", conf_name)
     if conf_params['walls']:
         printOutConf(conf_name, conf[0], conf[1], conf_params, fixed_velocities=conf[2])
-    else:    
+    else:
         printOutConf(conf_name, conf[0], conf[1], conf_params)
