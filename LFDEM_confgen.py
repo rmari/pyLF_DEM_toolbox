@@ -142,21 +142,21 @@ def setupSimu(simu, init_conf):
     rate.dimension = lfdem.Dimension_Force
     rate.value = 0
 
-    simu.setupFlow(rate)
+    simu.setupFlow()
 
-    PFactory = lfdem.ParameterSetFactory()
-    # simu.setupNonDimensionalization(rate, PFactory)
-    simu.p = PFactory.getParameterSet()
-
-    simu.p.flow_type = "shear"
-    simu.p.kn = 1
-    simu.p.friction_model = 0
-    simu.p.integration_method = 0
-    simu.p.disp_max = 5e-3
-    simu.p.lubrication_model = "none"
-    simu.p.contact_relaxation_time_tan = 1e-4
-
+    PFactory = lfdem.ParameterSetFactory(lfdem.Unit_kn)
     sys = simu.getSys()
+
+    sys.p = PFactory.getParameterSet()
+
+    sys.p.flow_type = "shear"
+    sys.p.kn = 1
+    sys.p.friction_model = 0
+    sys.p.integration_method = 0
+    sys.p.disp_max = 5e-3
+    sys.p.lubrication_model = "none"
+    sys.p.contact_relaxation_time_tan = 1e-4
+
     sys.zero_shear=True
     sys.mobile_fixed = True
 
