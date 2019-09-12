@@ -17,7 +17,7 @@ def pvol(d, radius):
 
 def get_volume(N, vf, vf_ratio, pvol1, pvol2):
     vf1 = vf*vf_ratio
-    volume = N/(vf1/pvol1+vf1/pvol2)
+    volume = (N/vf)/((1-vf_ratio)/pvol2 + vf_ratio/pvol1)
     return volume
 
 
@@ -137,10 +137,10 @@ def expandConfParams(**args):
 
 
 def setupSimu(simu, init_conf):
-    rate = lfdem.DoubleDimQty()
-    rate.unit = lfdem.Unit_hydro
-    rate.dimension = lfdem.Dimension_Force
-    rate.value = 0
+    # rate = lfdem.DoubleDimQty()
+    # rate.unit = lfdem.Unit_hydro
+    # rate.dimension = lfdem.Dimension_Force
+    # rate.value = 0
 
     simu.setupFlow()
 
@@ -149,20 +149,17 @@ def setupSimu(simu, init_conf):
 
     sys.p = PFactory.getParameterSet()
 
-    sys.p.flow_type = "shear"
-    sys.p.kn = 1
-    sys.p.friction_model = 0
     sys.p.integration_method = 0
     sys.p.disp_max = 5e-3
-    sys.p.lubrication_model = "none"
-    sys.p.contact_relaxation_time_tan = 1e-4
+    sys.p.contact.relaxation_time_tan = 1e-4
+    sys.p.contact.friction_model = 0
+    sys.p.contact.kn = 1
 
-    sys.zero_shear=True
-    sys.mobile_fixed = True
+    sys.mobile_fixed = False
+    sys.shear_type = False
 
     simu.assertParameterCompatibility()
     sys.setupConfiguration(init_conf, lfdem.ControlVariable_rate)
-    sys.setVelocityDifference()
     print("setup [ok]")
 
 
@@ -270,8 +267,6 @@ def generateConf(simu, conf_params,
     sys = simu.getSys()
     if conf_params['walls']:
         simu.p.simulation_mode = 31
-    sys.checkNewInteraction()
-    sys.updateInteractions()
     contact_nb = lfdem.countNumberOfContact(sys)
     print("Generating", flush=True, end='')
     while contact_nb[0]/conf_params['N'] > stop_params['contact_ratio']\
@@ -282,9 +277,9 @@ def generateConf(simu, conf_params,
         print(contact_nb[0]/conf_params['N'], lfdem.evaluateMinGap(sys))
 
     if not conf_params['walls']:
-        return np.array(sys.position), np.array(sys.radius)
+        return np.array(sys.conf.position), np.array(sys.conf.radius)
     else:
-        return np.array(sys.position), np.array(sys.radius), np.array(sys.fixed_velocities)
+        return np.array(sys.conf.position), np.array(sys.conf.radius), np.array(sys.fixed_velocities)
 
 
 
