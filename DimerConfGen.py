@@ -61,6 +61,10 @@ def periodize(p, box):
     return p
 
 def initialRandom(p):
+    radii = p['rad1']*np.ones(2*p['N'])
+    radii[2*p['N1']:] = p['rad2']
+    radii = lfdem.DoubleVector(radii)
+
     positions = lfdem.Vec3dVector()
     box = np.array([p['lx'], p['ly'], p['lz']])
     for i in range(p['N']):
@@ -68,13 +72,11 @@ def initialRandom(p):
         pos = box*np.random.rand(3)
         positions.push_back(lfdem.vec3d(*pos))
         if p['d']==2:
-            n = p['sep']*randUnit2d()
+            n = 2*radii[2*i]*p['sep']*randUnit2d()
         if p['d']==3:
-            n = p['sep']*randUnit3d()
+            n = 2*radii[2*i]*p['sep']*randUnit3d()
         positions.push_back(lfdem.vec3d(*(periodize(pos+n, box))))
-    radii = p['rad1']*np.ones(2*p['N'])
-    radii[2*p['N1']:] = p['rad2']
-    radii = lfdem.DoubleVector(radii)
+    
 
     return positions, radii
 
@@ -192,7 +194,8 @@ def runRelax(simu, conf, dimers, conf_params,
     
     contact_nb = lfdem.countNumberOfContact(simusys)
     print("Generating", flush=True, end='')
-    while contact_nb[0]/conf_params['N'] > stop_params['contact_ratio']:
+    while contact_nb[0]/conf_params['N'] > stop_params['contact_ratio']\
+            and lfdem.evaluateMinGap(sys) < stop_params['min_gap']:
         simusys.timeEvolution(simusys.get_time()+2, -1)
         contact_nb = lfdem.countNumberOfContact(simusys)
         # print(".", flush=True, end='')
