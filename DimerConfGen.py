@@ -208,10 +208,14 @@ def runRelax(simu, conf, dimers, conf_params,
 def printOutConf(fname, positions, radii, params):
     with open(fname, "w") as outf:
         header = "# np np1 np2 vf lx ly lz vf1 vf2 disp\n"+"# "
+        params['N'] *= 2
+        params['N1'] *= 2
 
         for p in ['N', 'N1', 'N2', 'vf', 'lx', 'ly', 'lz', 'vf1', 'vf2']:
             header += " "+str(params[p])
         header += " 0\n"
+        params['N'] = int(params['N']/2)
+        params['N1'] = int(params['N1']/2)
 
         outf.write(header)
         np_mobile = 2*params['N']
@@ -282,6 +286,7 @@ def genConfName(conf_params):
         fname += str(conf_params['vf_ratio'])
     else:
         fname += "Mono"
+    fname += "Sep"+str(conf_params['sep'])
 
     if conf_params['d'] == 3:
         fname += "LyLx"+str(conf_params['ly']/conf_params['lx'])
