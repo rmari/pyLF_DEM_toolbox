@@ -14,7 +14,8 @@ def getArgParser():
     parser.add_argument('params_file', type=str)
     parser.add_argument('-n', '--binary_conf', action='store_true')
     parser.add_argument('-f', '--overwrite', action='store_true')
-    parser.add_argument('-r', '--rate', type=str, required=True)
+    # parser.add_argument('-r', '--rate', type=str, required=True)
+    parser.add_argument('-s', '--stress', type=str, required=True)
     parser.add_argument('-a', '--amplitude',
                         type=float, required=True)
     parser.add_argument('-t', '--angle',
@@ -43,23 +44,6 @@ def getSuffix(value_str):
     return float(value_str[:split]), value_str[split:]
 
 
-def getArchStrainData(in_args, n):
-    aosp = in_args['amplitude_OSP']
-    rosp = in_args['rate_OSP_max_ratio']
-
-    x = np.linspace(0, 2*np.pi, 4*n+5)*aosp/rosp
-    z = aosp*np.sin(rosp*x/aosp)
-    dx = np.diff(x)
-    dz = np.diff(z)
-    thetas = np.arctan2(dz, dx)
-    strain_steps = np.sqrt(dx**2+dz**2)
-
-    rate_primary = in_args['rate_primary']
-    rate_OSP = rosp*rate_primary*np.cos(rosp*x/aosp)
-    shear_rates = np.sqrt(rate_OSP**2 + rate_primary**2)
-    return shear_rates, thetas, strain_steps
-
-
 def updateDirection(in_args, tk, events, simu):
     strain = simu.getSys().get_cumulated_strain()
 
@@ -69,50 +53,50 @@ def updateDirection(in_args, tk, events, simu):
     if "end_diagonal1" in events:
         tk.removeClock()
         tk.addClock("data",
-                    lf.LinearClock(transverse_amplitude/10, True))
+                    lf.LinearClock(transverse_amplitude/10, True, strain+transverse_amplitude/10))
         tk.addClock("config",
-                    lf.LinearClock(transverse_amplitude, True))
+                    lf.LinearClock(transverse_amplitude, True, strain+transverse_amplitude))
         tk.addClock("end_transverse1",
-                    lf.LinearClock(transverse_amplitude, True))
-        simu.getSys().p.theta_shear = -90     
+                    lf.LinearClock(transverse_amplitude, True, strain+transverse_amplitude))
+        simu.getSys().p.theta_shear = -0.5*np.pi     
         simu.setupFlow()
 
     if "end_transverse1" in events:
         tk.removeClock()
         tk.addClock("data",
-                    lf.LinearClock(diagonal_amplitude/10, True))
+                    lf.LinearClock(diagonal_amplitude/10, True, strain+diagonal_amplitude/10))
         tk.addClock("config",
-                    lf.LinearClock(diagonal_amplitude, True))
+                    lf.LinearClock(diagonal_amplitude, True, strain+diagonal_amplitude))
         tk.addClock("end_diagonal2",
-                    lf.LinearClock(2*diagonal_amplitude, True))
-        simu.getSys().p.theta_shear = -in_args["angle"]     
+                    lf.LinearClock(2*diagonal_amplitude, True, strain+2*diagonal_amplitude))
+        simu.getSys().p.theta_shear = np.pi-in_args["angle"]     
         simu.setupFlow()
 
     if "end_diagonal2" in events:
         tk.removeClock()
         tk.addClock("data",
-                    lf.LinearClock(transverse_amplitude/10, True))
+                    lf.LinearClock(transverse_amplitude/10, True, strain+transverse_amplitude/10))
         tk.addClock("config",
-                    lf.LinearClock(transverse_amplitude, True))
-        tk.addClock("end_transverse1",
-                    lf.LinearClock(transverse_amplitude, True))
-        simu.getSys().p.theta_shear = in_args["angle"]   
+                    lf.LinearClock(transverse_amplitude, True, strain+transverse_amplitude))
+        tk.addClock("end_transverse2",
+                    lf.LinearClock(transverse_amplitude, True, strain+transverse_amplitude))
+        simu.getSys().p.theta_shear = -0.5*np.pi   
         simu.setupFlow()
 
     if "end_transverse2" in events:
         tk.removeClock()
         tk.addClock("data",
-                    lf.LinearClock(diagonal_amplitude/10, True))
+                    lf.LinearClock(diagonal_amplitude/10, True, strain+diagonal_amplitude/10))
         tk.addClock("config",
-                    lf.LinearClock(diagonal_amplitude, True))
+                    lf.LinearClock(diagonal_amplitude, True, strain+diagonal_amplitude))
         tk.addClock("end_diagonal1",
-                    lf.LinearClock(2*diagonal_amplitude, True))
+                    lf.LinearClock(2*diagonal_amplitude, True, strain+2*diagonal_amplitude))
         simu.getSys().p.theta_shear = in_args["angle"]     
         simu.setupFlow()
 
     return tk
 
-def initTimeKeeper(in_args):
+def initTimeKeeper(in_args, simu):
     print("[Note] Overriding time_interval_output_* in user parameter file.")
 
     tk = lf.TimeKeeper()
@@ -124,28 +108,35 @@ def initTimeKeeper(in_args):
     tk.addClock("config",
                 lf.LinearClock(diagonal_amplitude, True))
     tk.addClock("end_diagonal1",
-                lf.LinearClock(diagonal_amplitude, True))
+                lf.LinearClock(diagonal_amplitude, True, diagonal_amplitude))
+    simu.getSys().p.theta_shear = in_args["angle"]     
+    simu.setupFlow()
     return tk
 
 def hourglass_shear(in_args):
-    simu = lfh.setupBasicSimu(ctrl_str="r "+in_args['rate'], 
+    simu = lfh.setupBasicSimu(ctrl_str="s "+in_args['stress'], 
                               conf_file=in_args['config_file'], 
                               binary_conf=in_args['binary_conf'], 
                               params_file=in_args['params_file'], 
                               call_str=getCallString(),                              
                               identifier=getSimuId(in_args),
-                              overwrite=in_args['overwrite']) 
-    
-    binconf_counter = 0
-    simu.generateOutput(lf.SetString(["data", "config"]), binconf_counter)
+                              overwrite=in_args['overwrite'])
 
     system = simu.getSys()
-    tk = initTimeKeeper(in_args)
+
+    binconf_counter = 0
+    # simu.generateOutput(lf.SetString(["data", "config"]), binconf_counter)
+
+    system = simu.getSys()
+    print("time_end ", system.p.time_end.value)
+    in_args["angle"] *= np.pi/180.
+    tk = initTimeKeeper(in_args, simu)
     while simu.keepRunning():
         simu.timeEvolutionUntilNextOutput(tk)
         events = tk.getElapsedClocks(system.get_time(), system.get_cumulated_strain())
-        simu.generateOutput(events, binconf_counter)
-        simu.printProgress()
+        if "data" in events or "config" in events:
+            simu.generateOutput(events, binconf_counter)
+            simu.printProgress()
         tk = updateDirection(in_args, tk, events, simu)
 
     print("Time evolution done")
