@@ -165,8 +165,7 @@ def setupSimu(simu, init_conf):
 
 
 def generateConf(simu, conf_params,
-                 stop_params={'contact_ratio': 0.05,
-                              'min_gap': -0.01}):
+                 stop_params={'min_gap': 0.01}):
     """
         Generate an initial set of positions/radii that is relaxed up
         to small remaining overlaps.
@@ -175,6 +174,16 @@ def generateConf(simu, conf_params,
         'd', 'N', 'N1', 'rad1', 'rad2', 'lx', 'ly', 'lz'.
 
     """
+    # We inflate the particles so that we can gradient descent to a small but finite overlap between inflated particles
+    # At the end we deflate the particles, ensuring that in the deflated state the min gap is at least stop_params['min_gap'].
+    # To do this, we inflate particles to conf_params['rad']*(1+radius_inflation)
+    # In order for the min gap for inflated particles to remain negative, we need radius_inflation > stop_params['min_gap']/2
+    radius_inflation = stop_params['min_gap']/1.5 
+    min_gap_inflated = (stop_params['min_gap'] + 2)/(1+radius_inflation) - 2
+
+    conf_params['rad1'] *= (1+radius_inflation)
+    conf_params['rad2'] *= (1+radius_inflation)
+
     if not conf_params['walls']:
         conf = lfdem.base_shear_configuration()
         conf.position, conf.radius = initialRandom(conf_params['N'],
@@ -269,17 +278,18 @@ def generateConf(simu, conf_params,
         simu.p.simulation_mode = 31
     contact_nb = lfdem.countNumberOfContact(sys)
     print("Generating", flush=True, end='')
-    while contact_nb[0]/conf_params['N'] > stop_params['contact_ratio']\
-            and lfdem.evaluateMinGap(sys) < stop_params['min_gap']:
+    # while contact_nb[0]/conf_params['N'] > stop_params['contact_ratio']\
+            # and lfdem.evaluateMinGap(sys) < min_gap_inflated:
+    while lfdem.evaluateMinGap(sys) < min_gap_inflated:
         sys.timeEvolution(sys.get_time()+2, -1)
         contact_nb = lfdem.countNumberOfContact(sys)
         # print(".", flush=True, end='')
-        print(contact_nb[0]/conf_params['N'], lfdem.evaluateMinGap(sys))
+        print(contact_nb[0]/conf_params['N'], lfdem.evaluateMinGap(sys), min_gap_inflated)
 
     if not conf_params['walls']:
-        return np.array(sys.conf.position), np.array(sys.conf.radius)
+        return np.array(sys.conf.position), np.array(sys.conf.radius)/(1+radius_inflation)
     else:
-        return np.array(sys.conf.position), np.array(sys.conf.radius), np.array(sys.fixed_velocities)
+        return np.array(sys.conf.position), np.array(sys.conf.radius)/(1+radius_inflation), np.array(sys.fixed_velocities)
 
 
 
