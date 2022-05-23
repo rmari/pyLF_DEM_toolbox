@@ -1,11 +1,7 @@
 # load Makefile inputs
-makeconfig = config/Makefile_config.mk
-gotconfig = 0
-ifneq ("$(wildcard $(makeconfig))","")
-        include $(makeconfig)
-        gotconfig = 1
-endif
+
+PYTHON_DIR = $(shell env python -c "import site;print(site.getsitepackages()[0])")
 
 install:
-	cp *.py $(INSTALL_DIR)
+	cp *.py $(INSTALL)
 	cp LFDEM_confgen.py $(PYTHON_DIR)
