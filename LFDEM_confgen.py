@@ -14,17 +14,27 @@ def pvol(d, radius):
     else:
         raise RuntimeError("d = "+str(d)+" unhandled...")
 
+def get_partition(N, vf, alpha_phi, pvol1, pvol2):
+    # Volume fraction phi = (N_1 pvol1 + N_2 pvol2)/V = phi_1 + phi_2
+    # phi_1 = alpha_phi phi = N_1 pvol1/V
+    # N_1 = alpha_N N
 
-def get_volume(N, vf, vf_ratio, pvol1, pvol2):
-    vf1 = vf*vf_ratio
-    volume = (N/vf)/((1-vf_ratio)/pvol2 + vf_ratio/pvol1)
-    return volume
+    # Knowing N, vf, alpha_phi, pvol1 and pvol2, the goal is to find how many particles of type 1 and 2, N1 and N2, and the system volume V
+    # The intermediate problem is to determine alpha_N and V, and to get the N1 as the closest integer to alpha_N*N. The solution has correct N, vf, but approximate alpha_phi.
+    
+    # A bit of algebra shows 
+    # V*vf/N = alpha_N*pvol1/alpha_phi
+    # and
+    # alpha_N = 1/(1+(pvol1/pvol2)*(1./alpha_phi - 1))
 
 
-def get_N1N2(N, vf1, volume, pvol1):
-    N1 = int(np.around(vf1*volume/pvol1))
+    alpha_N = 1./(1 + (pvol1/pvol2)*(1./alpha_phi - 1))
+    N1 = np.int(np.around(N*alpha_N))
     N2 = N - N1
-    return N1, N2
+    alpha_phi_eff = 1/(1. + N2*pvol2/(N1*pvol1))
+    volume = N1*pvol1/alpha_phi_eff/vf
+
+    return N1, N2, volume
 
 
 def get_BoxSize(d, volume, lylx, lzlx):
@@ -119,19 +129,15 @@ def expandConfParams(**args):
     conf_params['vf1'] = conf_params['vf']*conf_params['vf_ratio']
     conf_params['vf2'] = conf_params['vf'] - conf_params['vf1']
 
-    volume = get_volume(conf_params['N'],
-                        conf_params['vf'],
-                        conf_params['vf_ratio'],
-                        pvol(conf_params['d'], conf_params['rad1']),
-                        pvol(conf_params['d'], conf_params['rad2']))
+    conf_params['N1'], conf_params['N2'] , volume = get_partition(conf_params['N'],
+                                                                  conf_params['vf'],
+                                                                  conf_params['vf_ratio'],
+                                                                  pvol(conf_params['d'], conf_params['rad1']),
+                                                                  pvol(conf_params['d'], conf_params['rad2']))
 
-    conf_params['N1'], conf_params['N2'] = get_N1N2(conf_params['N'],
-                                                    conf_params['vf1'],
-                                                    volume,
-                                                    pvol(conf_params['d'], 1))
     conf_params['lx'], conf_params['ly'], conf_params['lz'] = \
         get_BoxSize(conf_params['d'], volume, ly_over_lx, lz_over_lx)
-
+    print(conf_params['lx'], volume)
     conf_params['walls'] = args['walls']
     return conf_params
 
@@ -284,7 +290,7 @@ def generateConf(simu, conf_params,
         sys.timeEvolution(sys.get_time()+2, -1)
         contact_nb = lfdem.countNumberOfContact(sys)
         # print(".", flush=True, end='')
-        print(contact_nb[0]/conf_params['N'], lfdem.evaluateMinGap(sys), min_gap_inflated)
+        print("min gap (inflated):", lfdem.evaluateMinGap(sys), "\t goal:", min_gap_inflated)
 
     if not conf_params['walls']:
         return np.array(sys.conf.position), np.array(sys.conf.radius)/(1+radius_inflation)
