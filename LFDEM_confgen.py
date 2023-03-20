@@ -29,7 +29,7 @@ def get_partition(N, vf, alpha_phi, pvol1, pvol2):
 
 
     alpha_N = 1./(1 + (pvol1/pvol2)*(1./alpha_phi - 1))
-    N1 = np.int(np.around(N*alpha_N))
+    N1 = int(np.around(N*alpha_N))
     N2 = N - N1
     alpha_phi_eff = 1/(1. + N2*pvol2/(N1*pvol1))
     volume = N1*pvol1/alpha_phi_eff/vf
@@ -49,7 +49,7 @@ def get_BoxSize(d, volume, lylx, lzlx):
     return lx, ly, lz
 
 
-def initialRandom(N, N1, radius1, radius2, lx, ly, lz):
+def initialRandom(N, N1, radius1, radius2, lx, ly, lz, radius_noise_stddev=0):
     positions = lfdem.Vec3dVector()
 
     for i in range(N):
@@ -61,6 +61,8 @@ def initialRandom(N, N1, radius1, radius2, lx, ly, lz):
 
     radii = radius1*np.ones(N)
     radii[N1:] = radius2
+
+    radii += np.random.normal(0, radius_noise_stddev, size=radii.shape)
     radii = lfdem.DoubleVector(radii)
 
     return positions, radii
@@ -139,6 +141,7 @@ def expandConfParams(**args):
         get_BoxSize(conf_params['d'], volume, ly_over_lx, lz_over_lx)
     print(conf_params['lx'], volume)
     conf_params['walls'] = args['walls']
+    conf_params['rad_stddev'] = args['radius_stddev']
     return conf_params
 
 
@@ -198,7 +201,8 @@ def generateConf(simu, conf_params,
                                                  conf_params['rad2'],
                                                  conf_params['lx'],
                                                  conf_params['ly'],
-                                                 conf_params['lz'])
+                                                 conf_params['lz'],
+                                                 conf_params['rad_stddev'])
 
         conf.volume_or_area_fraction = conf_params['vf']
         conf.lx, conf.ly, conf.lz = conf_params['lx'], conf_params['ly'], conf_params['lz']
@@ -336,6 +340,8 @@ if __name__ == '__main__':
                         type=int, default=3)
     parser.add_argument('-rr', '--radius-ratio',
                         type=float, default=1.4)
+    parser.add_argument('-rdev', '--radius-stddev',
+                        type=float, default=0)
     parser.add_argument('-o', '--output')
     parser.add_argument('-w', '--walls', action='store_true')
     parser.add_argument('-s', '--soft', action='store_true')
